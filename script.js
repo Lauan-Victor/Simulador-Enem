@@ -3,6 +3,11 @@ const loginForm = document.querySelector("#login-form");
 const signupForm = document.querySelector("#signup-form");
 const signupPassword = document.querySelector("#signup-password");
 const confirmPassword = document.querySelector("#signup-confirm-password");
+const testUser = {
+	name: "Estudante de demonstração",
+	email: "teste@simulaenem.com",
+	password: "enem2026",
+};
 
 function setMode(mode) {
 	const isLogin = mode === "login";
@@ -55,8 +60,20 @@ loginForm.addEventListener("submit", (event) => {
 	}
 
 	const status = document.querySelector("#login-status");
-	status.textContent = "Dados validados. Para entrar, conecte este formulário a um serviço de autenticação.";
-	status.hidden = false;
+	const email = loginForm.elements.email.value.trim().toLowerCase();
+	const password = loginForm.elements.password.value;
+
+	if (email !== testUser.email || password !== testUser.password) {
+		status.textContent = "E-mail ou senha incorretos. Use as credenciais de demonstração exibidas nesta tela.";
+		status.hidden = false;
+		return;
+	}
+
+	sessionStorage.setItem("simulaEnemSession", JSON.stringify({
+		name: testUser.name,
+		email: testUser.email,
+	}));
+	window.location.href = "perfil.html";
 });
 
 signupForm.addEventListener("submit", (event) => {
