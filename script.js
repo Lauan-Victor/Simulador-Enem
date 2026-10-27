@@ -73,7 +73,7 @@ loginForm.addEventListener("submit", (event) => {
 		name: testUser.name,
 		email: testUser.email,
 	}));
-	window.location.href = "perfil.html";
+	window.location.href = "inicio.html";
 });
 
 signupForm.addEventListener("submit", (event) => {
