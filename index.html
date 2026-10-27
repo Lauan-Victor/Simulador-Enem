@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta name="theme-color" content="#f5f4ee">
+	<meta name="description" content="Acesse sua conta ou cadastre-se no Simula ENEM.">
+	<title>Acesse sua conta | Simula ENEM</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+	<link rel="stylesheet" href="style.css">
+	<script src="script.js" defer></script>
+</head>
+<body>
+	<main class="auth-layout">
+		<aside class="study-panel" aria-label="Simula ENEM">
+			<img class="study-photo" src="https://images.pexels.com/photos/37514276/pexels-photo-37514276.jpeg?auto=compress&amp;cs=tinysrgb&amp;w=1400" alt="Livro aberto e xícara de café vistos de cima">
+			<div class="study-shade"></div>
+			<a class="brand brand-on-photo" href="#inicio" aria-label="Simula ENEM, início">
+				<span class="brand-mark" aria-hidden="true">S</span>
+				<span>simula<span class="brand-light">enem</span></span>
+			</a>
+			<div class="study-copy" id="inicio">
+				<p class="eyebrow"><span class="eyebrow-dot"></span> SEU PRÓXIMO PASSO COMEÇA AQUI</p>
+				<h1>Uma boa nota<br>muda o <span>caminho.</span></h1>
+				<p class="study-description">Treine no seu ritmo. Chegue no dia da prova sabendo do que é capaz.</p>
+				<div class="photo-caption"><span class="caption-line"></span> Sua jornada, uma questão de cada vez.</div>
+			</div>
+			<div class="study-index" aria-hidden="true">01 <span></span> 05</div>
+		</aside>
+
+		<section class="form-panel" aria-labelledby="form-heading">
+			<a class="brand brand-mobile" href="#inicio" aria-label="Simula ENEM, início">
+				<span class="brand-mark" aria-hidden="true">S</span>
+				<span>simula<span class="brand-light">enem</span></span>
+			</a>
+
+			<div class="form-wrap">
+				<p class="form-kicker">BOM TER VOCÊ POR AQUI</p>
+				<h2 id="form-heading">A sua preparação<br>continua <span>daqui.</span></h2>
+				<p class="form-intro">Entre na sua conta ou crie uma para começar.</p>
+
+				<div class="mode-switch" role="group" aria-label="Escolha entre entrar e criar uma conta">
+					<button class="mode-button is-active" type="button" data-mode="login" aria-pressed="true">Entrar</button>
+					<button class="mode-button" type="button" data-mode="signup" aria-pressed="false">Criar conta</button>
+				</div>
+
+				<form class="auth-form" id="login-form" novalidate>
+					<div class="field-group">
+						<label for="login-email">E-mail</label>
+						<input id="login-email" name="email" type="email" placeholder="voce@exemplo.com" autocomplete="email" required>
+					</div>
+					<div class="field-group">
+						<label for="login-password">Senha</label>
+						<div class="password-field">
+							<input id="login-password" name="password" type="password" placeholder="Sua senha" autocomplete="current-password" required>
+							<button class="password-toggle" type="button" data-password="login-password" aria-label="Mostrar senha">Mostrar</button>
+						</div>
+					</div>
+					<button class="submit-button" type="submit">Entrar na minha conta <span aria-hidden="true">&#8594;</span></button>
+					<p class="form-status" id="login-status" role="status" aria-live="polite" hidden></p>
+				</form>
+
+				<form class="auth-form" id="signup-form" hidden novalidate>
+					<div class="field-group">
+						<label for="signup-name">Nome completo</label>
+						<input id="signup-name" name="name" type="text" placeholder="Como podemos te chamar?" autocomplete="name" minlength="2" required>
+					</div>
+					<div class="field-group">
+						<label for="signup-email">E-mail</label>
+						<input id="signup-email" name="email" type="email" placeholder="voce@exemplo.com" autocomplete="email" required>
+					</div>
+					<div class="field-group">
+						<label for="signup-password">Crie uma senha</label>
+						<div class="password-field">
+							<input id="signup-password" name="password" type="password" placeholder="Pelo menos 8 caracteres" autocomplete="new-password" minlength="8" required>
+							<button class="password-toggle" type="button" data-password="signup-password" aria-label="Mostrar senha">Mostrar</button>
+						</div>
+					</div>
+					<div class="field-group">
+						<label for="signup-confirm-password">Confirme sua senha</label>
+						<div class="password-field">
+							<input id="signup-confirm-password" name="confirm-password" type="password" placeholder="Digite sua senha novamente" autocomplete="new-password" minlength="8" required>
+							<button class="password-toggle" type="button" data-password="signup-confirm-password" aria-label="Mostrar senha">Mostrar</button>
+						</div>
+					</div>
+					<label class="terms-check">
+						<input id="signup-terms" name="terms" type="checkbox" required>
+						<span>Li e concordo em criar minha conta no Simula ENEM.</span>
+					</label>
+					<button class="submit-button" type="submit">Criar minha conta <span aria-hidden="true">&#8594;</span></button>
+					<p class="form-status" id="signup-status" role="status" aria-live="polite" hidden></p>
+				</form>
+
+				<p class="form-footnote"><span aria-hidden="true">&#9679;</span> Um passo de cada vez. Você chega lá.</p>
+			</div>
+			<footer class="form-footer"><span>Simula ENEM</span><span>Preparação que acompanha você.</span></footer>
+		</section>
+	</main>
+</body>
+</html>
