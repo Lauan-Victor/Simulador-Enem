@@ -15,14 +15,50 @@ if (!sessionValue) {
 	const minutesSelect = document.querySelector("#duration-minutes");
 	const loadStatus = document.querySelector("#load-status");
 	const startButton = document.querySelector("#start-exam");
+	const fullscreenWarning = document.querySelector("#fullscreen-warning");
+	const fullscreenWarningText = document.querySelector("#fullscreen-warning-text");
+	const fullscreenWarningStatus = document.querySelector("#fullscreen-warning-status");
+	const fullscreenReturnButton = document.querySelector("#fullscreen-return");
 	const answers = new Map();
 	let examQuestions = [];
 	let currentIndex = 0;
 	let remainingSeconds = 0;
 	let timerInterval;
+	let fullscreenWarnings = 0;
+	let fullscreenWarningOpen = false;
+	let examActive = false;
+	let examDisqualified = false;
+	let examStarting = false;
 
 	function normalizeText(text) {
 		return text.replace(/\s+/g, " ").trim();
+	}
+
+	function languageFromContext(text, offset, header) {
+		const context = `${text.slice(0, offset)} ${header}`;
+		const matches = [...context.matchAll(/\bop(?:ç|c)[ãâa]o\s*:?\s*(ingl[eê]s|espanhol)\b/gi)];
+		const language = matches.at(-1)?.[1].toLowerCase();
+		return language && language.startsWith("ingl") ? "ingles" : language;
+	}
+
+	function imagePathForQuestion(year, number, language, imageFiles) {
+		const questionNumber = String(number).padStart(2, "0");
+		const stem = `${year}-questao-${questionNumber}`;
+		const baseImage = `${stem}.png`;
+		if (language && imageFiles.has(`${stem}-${language}.png`)) {
+			return `./imagens-questoes/${stem}-${language}.png`;
+		}
+		if (imageFiles.has(baseImage)) {
+			return `./imagens-questoes/${baseImage}`;
+		}
+		if (!language) {
+			const localizedImages = ["ingles", "espanhol"]
+				.filter((variant) => imageFiles.has(`${stem}-${variant}.png`));
+			if (localizedImages.length === 1) {
+				return `./imagens-questoes/${stem}-${localizedImages[0]}.png`;
+			}
+		}
+		return null;
 	}
 
 	function areaFromHeading(text, offset, questionNumber) {
@@ -105,7 +141,7 @@ if (!sessionValue) {
 			: null;
 	}
 
-	function parseQuestionFile(text, year, answerKey) {
+	function parseQuestionFile(text, year, answerKey, imageFiles) {
 		const marker = /^\s*(?:QUEST(?:ÃO|AO)\s*0*(\d{1,3})|0*(\d{1,3})\s+QUEST(?:ÃO|AO))\b.*$/gim;
 		const headers = [...text.matchAll(marker)];
 		const questions = [];
@@ -121,7 +157,7 @@ if (!sessionValue) {
 			const end = headers[index + 1]?.index ?? text.length;
 			const lines = text.slice(start, end).split(/\r?\n/);
 			const imageNotice = /\b(?:tem|cont[ée]m|contendo)\s+(?:uma\s+)?imagem|\(\s*(?:in?magem|tem\s+imagem|imagem\s+nas\s+respostas)\b|\bimagem\s+nas\s+respostas\b/i;
-			if (imageNotice.test(header[0]) || imageNotice.test(lines.join("\n"))) return;
+			const hasImage = imageNotice.test(header[0]) || imageNotice.test(lines.join("\n"));
 
 			const parsedChoices = parseChoices(lines);
 			const possibleAnswers = answerKey.get(number) || [];
@@ -129,13 +165,19 @@ if (!sessionValue) {
 			if (!parsedChoices || !correctAnswer
 				|| !parsedChoices.choices.some((choice) => choice.letter === correctAnswer)) return;
 
-			const statement = normalizeText(lines.slice(0, parsedChoices.firstChoiceIndex).join(" "));
+			const statement = normalizeText(lines.slice(0, parsedChoices.firstChoiceIndex).join(" ")
+				.replace(/\(?\s*(?:tem|cont[ée]m|contendo)\s+(?:uma\s+)?imagem(?:\s+nas\s+respostas)?\s*\)?|\bimagem\s+nas\s+respostas\b/gi, " "));
 			if (!statement) return;
+			const language = languageFromContext(text, header.index, header[0]);
+			const imagePath = imagePathForQuestion(year, number, language, imageFiles);
 
 			questions.push({
 				id: `${year}-${number}`,
 				year,
 				number,
+				language,
+				imagePath,
+				hasImage: hasImage || Boolean(imagePath),
 				area: areaFromHeading(text, header.index, number),
 				statement,
 				choices: parsedChoices.choices,
@@ -158,6 +200,15 @@ if (!sessionValue) {
 	}
 
 	async function loadQuestionBank() {
+		const imageManifestResponse = await fetch("./imagens-questoes/manifest.json");
+		if (!imageManifestResponse.ok) {
+			throw new Error("Não foi possível carregar o índice de imagens das questões.");
+		}
+		const imageManifest = await imageManifestResponse.json();
+		if (!Array.isArray(imageManifest) || !imageManifest.every((fileName) => typeof fileName === "string")) {
+			throw new Error("O índice de imagens das questões está inválido.");
+		}
+		const imageFiles = new Set(imageManifest);
 		const files = await Promise.all(questionYears.map(async (year) => {
 			const [questionResponse, answerResponse] = await Promise.all([
 				fetch(`./provas/prova-${year}`),
@@ -170,13 +221,13 @@ if (!sessionValue) {
 				questionResponse.text(),
 				answerResponse.text(),
 			]);
-			return parseQuestionFile(questionText, year, parseAnswerKey(answerText));
+			return parseQuestionFile(questionText, year, parseAnswerKey(answerText), imageFiles);
 		}));
 
 		files.forEach((questions) => questionBank.push(...questions));
 		classifyDifficulty(questionBank);
 		if (!questionBank.length) {
-			throw new Error("Nenhuma questão sem aviso de imagem e com alternativas e gabarito disponíveis foi encontrada.");
+			throw new Error("Nenhuma questão com alternativas e gabarito disponíveis foi encontrada.");
 		}
 	}
 
@@ -217,6 +268,56 @@ if (!sessionValue) {
 		return [hours, minutes, remaining].map((value) => String(value).padStart(2, "0")).join(":");
 	}
 
+	function startTimer() {
+		window.clearInterval(timerInterval);
+		timerInterval = window.setInterval(() => {
+			remainingSeconds -= 1;
+			document.querySelector("#timer").textContent = formatTime(remainingSeconds);
+			if (remainingSeconds <= 0) finishExam();
+		}, 1000);
+	}
+
+	function registerFullscreenExit() {
+		if (!examActive || fullscreenWarningOpen) return;
+		fullscreenWarnings += 1;
+		if (fullscreenWarnings >= 2) {
+			examDisqualified = true;
+			finishExam();
+			return;
+		}
+
+		fullscreenWarningOpen = true;
+		window.clearInterval(timerInterval);
+		timerInterval = null;
+		fullscreenWarningText.textContent =
+			`Você saiu da tela cheia. Esta é sua advertência ${fullscreenWarnings} de 2. Na próxima saída, a prova será zerada.`;
+		fullscreenWarningStatus.hidden = true;
+		fullscreenWarning.showModal();
+		fullscreenReturnButton.focus();
+	}
+
+	async function returnToFullscreen() {
+		if (document.fullscreenElement) {
+			fullscreenWarningOpen = false;
+			fullscreenWarning.close();
+			startTimer();
+			return;
+		}
+
+		if (!document.documentElement.requestFullscreen) {
+			fullscreenWarningStatus.textContent = "Este navegador não permite retornar à tela cheia. Tente outro navegador para continuar.";
+			fullscreenWarningStatus.hidden = false;
+			return;
+		}
+
+		try {
+			await document.documentElement.requestFullscreen();
+		} catch (error) {
+			fullscreenWarningStatus.textContent = `Não foi possível retornar à tela cheia: ${error.message}`;
+			fullscreenWarningStatus.hidden = false;
+		}
+	}
+
 	function renderQuestion() {
 		const question = examQuestions[currentIndex];
 		document.querySelector("#current-number").textContent = currentIndex + 1;
@@ -226,6 +327,28 @@ if (!sessionValue) {
 		document.querySelector("#question-source").textContent =
 			`${question.area} · Prova ${question.year} · Questão ${String(question.number).padStart(2, "0")}`;
 		document.querySelector("#question-statement").textContent = question.statement;
+		const imageContainer = document.querySelector("#question-image");
+		imageContainer.replaceChildren();
+		imageContainer.hidden = !question.hasImage;
+		if (question.hasImage) {
+			if (!question.imagePath) {
+				const unavailable = document.createElement("p");
+				unavailable.className = "question-image-unavailable";
+				unavailable.textContent = "A imagem desta questão não está disponível no acervo.";
+				imageContainer.append(unavailable);
+			} else {
+				const image = document.createElement("img");
+				image.alt = `Imagem da questão ${String(question.number).padStart(2, "0")} da prova ${question.year}`;
+				image.addEventListener("error", () => {
+					const unavailable = document.createElement("p");
+					unavailable.className = "question-image-unavailable";
+					unavailable.textContent = "A imagem desta questão não está disponível no acervo.";
+					imageContainer.replaceChildren(unavailable);
+				});
+				image.src = question.imagePath;
+				imageContainer.append(image);
+			}
+		}
 		document.querySelector("#answer-options").replaceChildren(...question.choices.map((choice) => {
 			const label = document.createElement("label");
 			label.className = "answer-option";
@@ -249,6 +372,8 @@ if (!sessionValue) {
 	}
 
 	function finishExam() {
+		if (!examActive) return;
+		examActive = false;
 		window.clearInterval(timerInterval);
 		setupPanel.hidden = true;
 		runPanel.hidden = true;
@@ -262,28 +387,53 @@ if (!sessionValue) {
 			question.difficulty === "Difícil" && answers.get(question.id) === question.correctAnswer);
 		const guessPattern = missedEasy > 0 && missedMedium > 0 && correctHard.length > 0;
 		const invalidatedHard = guessPattern ? correctHard.length : 0;
-		const rawCorrect = examQuestions.filter((question) => answers.get(question.id) === question.correctAnswer).length;
-		const validCorrect = rawCorrect - invalidatedHard;
+		const rawCorrect = examDisqualified
+			? 0
+			: examQuestions.filter((question) => answers.get(question.id) === question.correctAnswer).length;
+		const validCorrect = examDisqualified ? 0 : rawCorrect - invalidatedHard;
 		const answered = answers.size;
 		const total = examQuestions.length;
 
 		document.querySelector("#result-summary").textContent =
 			`${validCorrect} acertos considerados de ${total} questões · ${answered} respondidas · ${total - answered} em branco.`;
-		document.querySelector("#result-breakdown").innerHTML = `
-			<div><span>Acertos antes da análise</span><strong>${rawCorrect}</strong></div>
-			<div><span>Fáceis erradas</span><strong>${missedEasy}</strong></div>
-			<div><span>Médias erradas</span><strong>${missedMedium}</strong></div>
-			<div><span>Difíceis desconsideradas</span><strong>${invalidatedHard}</strong></div>
-		`;
-		document.querySelector("#result-note").textContent = guessPattern
-			? "Como houve erro em questões fáceis e médias e acerto em difíceis, os acertos difíceis foram desconsiderados como possíveis chutes."
-			: "Nenhum padrão de acerto no chute foi identificado. As questões corretas foram consideradas.";
+		document.querySelector("#result-breakdown").innerHTML = examDisqualified
+			? `<div><span>Advertências por saída da tela cheia</span><strong>${fullscreenWarnings}</strong></div>
+				<div><span>Acertos considerados</span><strong>0</strong></div>`
+			: `<div><span>Acertos antes da análise</span><strong>${rawCorrect}</strong></div>
+				<div><span>Fáceis erradas</span><strong>${missedEasy}</strong></div>
+				<div><span>Médias erradas</span><strong>${missedMedium}</strong></div>
+				<div><span>Difíceis desconsideradas</span><strong>${invalidatedHard}</strong></div>`;
+		document.querySelector("#result-note").textContent = examDisqualified
+			? "A prova foi zerada porque você saiu da tela cheia pela segunda vez."
+			: guessPattern
+				? "Como houve erro em questões fáceis e médias e acerto em difíceis, os acertos difíceis foram desconsiderados como possíveis chutes."
+				: "Nenhum padrão de acerto no chute foi identificado. As questões corretas foram consideradas.";
 	}
 
-	function startExam() {
+	async function startExam() {
+		if (examStarting || examActive) return;
 		const pool = selectedPool();
 		if (!pool.length) {
-			loadStatus.textContent = "Não há questões disponíveis para essa matéria no acervo sem imagens.";
+			loadStatus.textContent = "Não há questões disponíveis para essa matéria no acervo.";
+			loadStatus.hidden = false;
+			return;
+		}
+		if (!document.documentElement.requestFullscreen) {
+			loadStatus.textContent = "Este navegador não permite iniciar o simulado em tela cheia.";
+			loadStatus.hidden = false;
+			return;
+		}
+		examStarting = true;
+		startButton.disabled = true;
+		try {
+			await document.documentElement.requestFullscreen();
+			if (!document.fullscreenElement) {
+				throw new Error("O navegador não confirmou o modo tela cheia.");
+			}
+		} catch (error) {
+			examStarting = false;
+			startButton.disabled = false;
+			loadStatus.textContent = `Não foi possível iniciar em tela cheia: ${error.message}`;
 			loadStatus.hidden = false;
 			return;
 		}
@@ -297,6 +447,10 @@ if (!sessionValue) {
 			remainingSeconds = selectedDurationMinutes() * 60;
 		}
 		currentIndex = 0;
+		fullscreenWarnings = 0;
+		examDisqualified = false;
+		examActive = true;
+		examStarting = false;
 		setupPanel.hidden = true;
 		runPanel.hidden = false;
 		document.querySelector("#run-kicker").textContent = configForm.elements.scope.value === "all"
@@ -304,11 +458,7 @@ if (!sessionValue) {
 			: `SIMULADO · ${subjectSelect.value.toUpperCase()}`;
 		renderQuestion();
 		document.querySelector("#timer").textContent = formatTime(remainingSeconds);
-		timerInterval = window.setInterval(() => {
-			remainingSeconds -= 1;
-			document.querySelector("#timer").textContent = formatTime(remainingSeconds);
-			if (remainingSeconds <= 0) finishExam();
-		}, 1000);
+		startTimer();
 	}
 
 	document.querySelectorAll('input[name="scope"]').forEach((input) => {
@@ -321,6 +471,21 @@ if (!sessionValue) {
 		event.preventDefault();
 		startExam();
 	});
+	document.addEventListener("fullscreenchange", () => {
+		if (document.fullscreenElement) {
+			if (fullscreenWarningOpen) {
+				fullscreenWarningOpen = false;
+				fullscreenWarning.close();
+				startTimer();
+			}
+		} else {
+			registerFullscreenExit();
+		}
+	});
+	document.addEventListener("visibilitychange", () => {
+		if (document.visibilityState === "hidden") registerFullscreenExit();
+	});
+	fullscreenReturnButton.addEventListener("click", returnToFullscreen);
 	document.querySelector("#next-question").addEventListener("click", () => {
 		if (currentIndex < examQuestions.length - 1) {
 			currentIndex += 1;
@@ -340,7 +505,7 @@ if (!sessionValue) {
 		startButton.disabled = false;
 		startButton.textContent = "Começar simulado";
 		startButton.insertAdjacentHTML("beforeend", ' <span aria-hidden="true">&#8594;</span>');
-		loadStatus.textContent = `${questionBank.length} questões disponíveis sem indicação de imagem.`;
+		loadStatus.textContent = `${questionBank.length} questões disponíveis, incluindo questões com imagem.`;
 		loadStatus.hidden = false;
 	}).catch((error) => {
 		loadStatus.textContent = `Não foi possível carregar o banco de questões: ${error.message}`;

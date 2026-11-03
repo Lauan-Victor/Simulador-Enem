@@ -84,7 +84,7 @@
 					</div>
 					<p class="question-estimate" id="question-estimate" aria-live="polite">90 questões estimadas <span>·</span> 6 horas</p>
 				</div>
-				<div class="exam-note"><span aria-hidden="true">i</span><p>Por enquanto, questões com indicação de imagem são retiradas do simulado. As dificuldades exibidas são estimativas, não classificações oficiais do ENEM.</p></div>
+				<div class="exam-note"><span aria-hidden="true">i</span><p>Questões com imagem também são incluídas; quando disponível, a imagem correspondente aparece junto ao enunciado. As dificuldades exibidas são estimativas, não classificações oficiais do ENEM.</p></div>
 				<p class="form-status exam-status" id="load-status" role="status" aria-live="polite" hidden></p>
 				<button class="submit-button start-exam-button" id="start-exam" type="submit" disabled>Carregando questões <span aria-hidden="true">&#8594;</span></button>
 			</form>
@@ -98,6 +98,7 @@
 			<div class="question-progress"><span id="progress-label">Questão 1 de 90</span><span class="difficulty-badge" id="difficulty-badge">Média estimada</span></div>
 			<div class="question-source" id="question-source"></div>
 			<p class="question-statement" id="question-statement"></p>
+			<figure class="question-image" id="question-image" hidden></figure>
 			<div class="answer-options" id="answer-options" role="group" aria-label="Alternativas"></div>
 			<div class="question-controls">
 				<button class="secondary-button" id="previous-question" type="button">Questão anterior</button>
@@ -114,6 +115,13 @@
 			<p class="result-note" id="result-note"></p>
 			<a class="submit-button result-home-link" href="inicio.html">Voltar ao início <span aria-hidden="true">&#8594;</span></a>
 		</section>
+		<dialog class="fullscreen-warning" id="fullscreen-warning" aria-labelledby="fullscreen-warning-heading">
+			<p class="dashboard-kicker">ATENÇÃO</p>
+			<h2 id="fullscreen-warning-heading">Você saiu da tela cheia</h2>
+			<p id="fullscreen-warning-text"></p>
+			<p class="fullscreen-warning-status" id="fullscreen-warning-status" role="alert" hidden></p>
+			<button class="submit-button" id="fullscreen-return" type="button">Retornar à prova</button>
+		</dialog>
 		<footer class="dashboard-footer"><span>Simula ENEM</span><span>Preparação que acompanha você.</span></footer>
 	</main>
 </body>
